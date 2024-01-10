@@ -1,0 +1,219 @@
+
+
+ # vagrantfile  
+
+  
+Vagrant.configure("2") do |config|  
+  config.vm.box = "bento/ubuntu-20.04"  
+  
+  # Rediriger le port 8080 de la VM vers le port 8080 de l'hôte  
+  config.vm.network "forwarded_port", guest: 8080, host: 8080  
+  config.vm.network "forwarded_port", guest: 8081, host: 8081  
+  
+  # Rediriger le port 8888 de la VM vers le port 8888 de l'hôte (pour phpMyAdmin)  
+  config.vm.network "forwarded_port", guest: 8888, host: 8888  
+  
+  # Provision Docker  
+  config.vm.provision "docker"  
+end
+
+
+ # Dockerfile
+
+
+ # Utilisez l'image OpenJDK 11 avec le client MySQL comme base
+ FROM openjdk:11-jdk
+ # Installez le client MySQL
+ # Définissez le répertoire de travail
+ WORKDIR /app
+ # Copiez le fichier JAR de votre application Spring Boot dans le      répertoire de travail
+ COPY target/LocTest-0.0.1-SNAPSHOT.jar LocTest.jar
+ # Exposez le port utilisé par votre application Spring Boot
+  EXPOSE 8080
+ # Commande pour exécuter l'application Spring Boot lorsque le conteneur  démarre
+  CMD ["java", "-jar", "LocTest.jar"]
+
+ # Premiere Etape
+
+- sudo apt install git
+
+- sudo git clone https://github.com/ComeDobe/christianDobe-loc-mns-Backend.git
+
+-  rm -rf backendlocmns -> suppression 
+
+- docker pull mysql:5.7 -> Creation du volume de la BDD
+
+- docker pull --platform linux/x86_64 mysql:5.7
+
+ # Deuxieme Etape  
+
+- sudo apt install maven 
+
+- mvn package
+
+ ### Les Autorisations 
+
+
+- ls -l /home/vagrant/backendlocmns
+- sudo chown -R vagrant:vagrant /home/vagrant/backendlocmns
+- chmod -R u+w /home/vagrant/backendlocmns 
+
+ # Creation du reseau de communication
+ 
+- docker network create backend
+
+- docker network ls    ->   Inspection de reseau 
+
+- docker network inspect christiandobe-loc-mns-backend_backend
+
+ # Troisieme Etape
+
+ # Creation du volume et persistence de la base de donnée 
+
+- docker run --name mysqldb --network backend-net -e MYSQL_ROOT_PASSWORD=1234 -e MYSQL_DATABASE=dobelocmns -d mysql:5.7
+
+ # Connection à la BDD
+
+- sudo apt-get install mysql-client
+
+- docker exec -it mysql mysql -u root -p
+
+- mysql -u root -p 1234
+
+- show databases;
+
+- mysql> USE dobelocmns;
+
+- Database changed
+
+- mysql> SHOW TABLES;
+
+spring.datasource.url=jdbc:mysql://mysqldb:3306/dobelocmns?serverTimezone=UTC&createDatabaseIfNotExist=true 
+
+ # Quatrieme Etape
+
+ # Construction de l'application 
+
+- docker build -t backendlocmns . -> Image de l'application 
+
+- docker run --network backend --name bakendlocmns -p 80:8080 -d backendlocmns
+
+ # Cinquieme Etape 
+
+ # Contruction du conteneur phpmyadmin
+
+
+- sudo docker run --name phpmyadmin --net backend-net -e PMA_HOST=172.18.0.2 -p 8888:80 -d phpmyadmin/phpmyadmin
+
+- docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' mysql
+
+-  docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' backendlocmns
+ # l'url pour acceder à la base de donnée 
+
+
+- http://127.0.0.1:8888
+
+
+ # Deuxieme Methode deploiement avec Docker-Compose
+
+
+ # Docker-compose
+
+
+
+version: '3.3'  
+  
+services:  
+  backend:  
+    image: backendlocmns  
+    restart: always  
+    build:  
+      context: .  
+      dockerfile: Dockerfile  
+    ports:  
+      - "80:8080"  
+    environment:  
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysqldb:3306/dobelocmns?serverTimezone=UTC&createDatabaseIfNotExist=true  
+      SPRING_DATASOURCE_USERNAME: root  
+      SPRING_DATASOURCE_PASSWORD: 1234  
+    depends_on:  
+      - mysqldb  
+    networks:  
+      - backend-net  
+  
+  mysqldb:  
+    image: mysql:5.7  
+    environment:  
+      MYSQL_ROOT_PASSWORD: 1234  
+      MYSQL_DATABASE: dobelocmns  
+    ports:  
+      - "3306:3306"  
+    networks:  
+      - backend-net  
+    volumes:  
+      - mysql-data:/var/lib/mysql  
+  
+  phpmyadmin:  
+    image: phpmyadmin/phpmyadmin  
+    environment:  
+      PMA_HOST: mysqldb  
+      PMA_PORT: 3306  
+      PMA_ARBITRARY: 1  
+    ports:  
+      - "8081:80"  
+    depends_on:  
+      - mysqldb  
+    networks:  
+      - backend-net  
+  
+networks:  
+  backend-net:  
+  
+volumes:  
+  mysql-data:
+
+ ## Commmandes
+
+- cat /etc/redhat-release
+
+- docker info
+
+- docker images
+
+- sudo apt install git   -> installation git
+
+- sudo git clone https://github.com/ComeDobe/christianDobe-loc-mns-Backend.git
+
+  ll
+- cd christianDobe-loc-mns-Backend/
+  ll
+  ls-la
+
+- docker ps -a
+
+- sudo apt install maven
+
+- mvn package
+
+- sudo chmod -R u+w /home/vagrant/christianDobe-loc-mns-Backend
+- sudo chown -R vagrant:vagrant /home/vagrant/christianDobe-loc-mns-Backend/target
+- ls -l /home/vagrant/christianDobe-loc-mns-Backend
+
+- mvn package
+
+- sudo nano docker-compose.yml
+
+- docker-compose --version 
+
+- docker-compose up -d --build
+
+
+- docker ps -a
+
+- docker logs
+
+- ip a
+
+ # l'url pour acceder à la base de donnée 
+
+- http://127.0.0.1:8081
